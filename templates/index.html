@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking - Live Detection</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+        nav {
+            background: #1a1a2e;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #00d4ff;
+        }
+        nav h1 { color: #00d4ff; font-size: 22px; }
+        nav a {
+            color: #aaa;
+            text-decoration: none;
+            margin-left: 25px;
+            font-size: 15px;
+            transition: color 0.3s;
+        }
+        nav a:hover, nav a.active { color: #00d4ff; }
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 0 20px;
+        }
+        h2 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 40px;
+        }
+        .mode-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .mode-tab {
+            background: #1a1a2e;
+            border: 2px solid #333;
+            color: #aaa;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .mode-tab.active {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+        .mode-panel { display: none; }
+        .mode-panel.active { display: block; }
+        .upload-box {
+            background: #1a1a2e;
+            border: 2px dashed #00d4ff;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-box input[type="file"] { display: none; }
+        .upload-box label {
+            cursor: pointer;
+            background: #00d4ff;
+            color: #0f0f1a;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            display: inline-block;
+            margin-bottom: 15px;
+            transition: background 0.3s;
+        }
+        .upload-box label:hover { background: #00b8d9; }
+        #preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+        #filename { color: #aaa; font-size: 14px; margin-top: 10px; }
+        .btn-detect {
+            width: 100%;
+            padding: 15px;
+            background: #00d4ff;
+            color: #0f0f1a;
+            border: none;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 30px;
+        }
+        .btn-detect:hover { background: #00b8d9; }
+        .btn-detect:disabled { background: #555; cursor: not-allowed; }
+        .result-box {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            display: none;
+        }
+        .plate-number {
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #ffffff;
+            background: #0f0f1a;
+            padding: 15px 30px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 20px;
+            border: 2px solid #333;
+        }
+        .status-allowed {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ff88;
+            padding: 15px 40px;
+            border-radius: 10px;
+            background: rgba(0,255,136,0.1);
+            border: 2px solid #00ff88;
+            display: inline-block;
+        }
+        .status-denied {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff4444;
+            padding: 15px 40px;
+            border-radius: 10px;
+            background: rgba(255,68,68,0.1);
+            border: 2px solid #ff4444;
+            display: inline-block;
+        }
+        .status-pending {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffaa00;
+            padding: 15px 30px;
+            border-radius: 10px;
+            background: rgba(255,170,0,0.12);
+            border: 2px solid #ffaa00;
+            display: inline-block;
+        }
+        .owner-name {
+            margin-top: 15px;
+            color: #aaa;
+            font-size: 16px;
+        }
+        .hardware-box {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .hardware-box img {
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-top: 10px;
+            background: #0f0f1a;
+            border: 1px solid #333;
+        }
+        .hardware-box video {
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            border-radius: 10px;
+            background: #0f0f1a;
+            border: 1px solid #333;
+        }
+        .camera-stage {
+            position: relative;
+            width: 100%;
+            margin-top: 10px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #hardwareOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .camera-frame-note {
+            color: #8fdfff;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .hardware-status {
+            color: #aaa;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .refresh-note {
+            color: #aaa;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            color: #00d4ff;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 0.8s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1> Smart Parking</h1>
+        <div>
+            <a href="/" class="active">Live Detection</a>
+            <a href="/search">NLP Search</a>
+            <a href="/admin">Admin Panel</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Live Number Plate Detection</h2>
+        <p class="subtitle">Choose mode: upload image manually or view live hardware detections</p>
+
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tabUpload" onclick="switchMode('upload')">Choose Image</button>
+            <button class="mode-tab" id="tabHardware" onclick="switchMode('hardware')">Hardware Live</button>
+        </div>
+
+        <div class="mode-panel active" id="panelUpload">
+            <div class="upload-box">
+                <input type="file" id="imageInput" accept="image/*">
+                <label for="imageInput">📷 Choose Image</label>
+                <div id="filename">No file chosen</div>
+                <img id="preview" alt="Preview">
+            </div>
+
+            <button class="btn-detect" id="detectBtn" onclick="detectPlate()" disabled>
+                🔍 Detect & Check Access
+            </button>
+        </div>
+
+        <div class="mode-panel" id="panelHardware">
+            <div class="hardware-box">
+                <div style="font-weight:bold; color:#00d4ff;">System Camera Live</div>
+                <div class="camera-stage" id="cameraStage">
+                    <video id="hardwareVideo" autoplay playsinline muted style="display:none;"></video>
+                    <canvas id="hardwareOverlay"></canvas>
+                </div>
+                <canvas id="hardwareCanvas" style="display:none;"></canvas>
+                <div class="hardware-status" id="hardwareStatus">Camera is off</div>
+                <div class="camera-frame-note">Keep plate inside center area of the camera view for best accuracy</div>
+                <div class="refresh-note">Auto-refresh every ~1.2 seconds</div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            Reading number plate...
+        </div>
+
+        <div class="result-box" id="resultBox">
+            <p style="color:#aaa; margin-bottom:15px;">Detected Plate</p>
+            <div class="plate-number" id="plateNumber">—</div>
+            <br>
+            <div id="statusBadge">—</div>
+            <div class="owner-name" id="ownerName"></div>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById("imageInput");
+        const preview = document.getElementById("preview");
+        const filename = document.getElementById("filename");
+        const detectBtn = document.getElementById("detectBtn");
+        const hardwareVideo = document.getElementById("hardwareVideo");
+        const hardwareCanvas = document.getElementById("hardwareCanvas");
+        const hardwareOverlay = document.getElementById("hardwareOverlay");
+        const hardwareStatus = document.getElementById("hardwareStatus");
+        const HARDWARE_CAPTURE_INTERVAL_MS = 1200;
+        let hardwarePollTimer = null;
+        let hardwareStream = null;
+        let hardwareCaptureBusy = false;
+        let recentPlate = "";
+        let recentPlateCount = 0;
+
+        input.addEventListener("change", function () {
+            const file = this.files[0];
+            if (file) {
+                filename.textContent = file.name;
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = "block";
+                detectBtn.disabled = false;
+            }
+        });
+
+        async function detectPlate() {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Show loading
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("resultBox").style.display = "none";
+            detectBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append("image", file);
+
+            try {
+                const response = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                renderResult(data);
+            } catch (err) {
+                document.getElementById("loading").style.display = "none";
+                alert("Server error. Make sure Flask is running.");
+            }
+
+            detectBtn.disabled = false;
+        }
+
+        function renderResult(data) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("resultBox").style.display = "block";
+            document.getElementById("plateNumber").textContent = data.plate || "NOT DETECTED";
+
+            const statusBadge = document.getElementById("statusBadge");
+            const ownerName = document.getElementById("ownerName");
+
+            if (data.status === "ALLOWED") {
+                statusBadge.innerHTML = '<div class="status-allowed">✅ ACCESS ALLOWED</div>';
+                if (data.checked_candidate) {
+                    ownerName.textContent = "Owner: " + (data.owner || "Unknown") + " (live best-effort match)";
+                } else {
+                    ownerName.textContent = "Owner: " + (data.owner || "Unknown");
+                }
+            } else if (data.status === "PENDING_DB") {
+                statusBadge.innerHTML = '<div class="status-pending">⏳ PLATE DETECTED, DB PENDING</div>';
+                ownerName.textContent = data.note || data.error || "Database check is temporarily unavailable";
+            } else if (data.status === "DENIED") {
+                statusBadge.innerHTML = '<div class="status-denied">❌ ACCESS DENIED</div>';
+                ownerName.textContent = data.checked_candidate
+                    ? "Best-effort detected plate is not registered"
+                    : "This plate is not registered";
+            } else {
+                const normalizedPlate = normalizePlateCandidate(data.plate);
+                if (normalizedPlate && normalizedPlate !== "UNREADABLE") {
+                    statusBadge.innerHTML = '<div class="status-denied">⚠️ PLATE DETECTED, DB CHECK INCOMPLETE</div>';
+                    ownerName.textContent = data.error || data.note || "Detected plate but database check could not be completed";
+                } else {
+                    statusBadge.innerHTML = '<div class="status-denied">⚠️ COULD NOT READ PLATE</div>';
+                    ownerName.textContent = data.note || "Try a clearer image";
+                }
+            }
+        }
+
+        function normalizePlateCandidate(value) {
+            return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        }
+
+        function smoothDetection(data) {
+            const candidate = normalizePlateCandidate(data.plate);
+            if (!candidate || candidate === "UNREADABLE") {
+                recentPlate = "";
+                recentPlateCount = 0;
+                return { ready: false, message: "Scanning for plate..." };
+            }
+
+            if (candidate === recentPlate) {
+                recentPlateCount += 1;
+            } else {
+                recentPlate = candidate;
+                recentPlateCount = 1;
+            }
+
+            if (recentPlateCount >= 2) {
+                return { ready: true, data: { ...data, plate: candidate } };
+            }
+
+            return {
+                ready: false,
+                message: `Plate candidate found (${candidate}) - confirming...`,
+            };
+        }
+
+        function findPlateLikeRectangle(ctx, width, height) {
+            const frame = ctx.getImageData(0, 0, width, height).data;
+            const step = 2;
+            const colScores = new Uint16Array(width);
+            const rowScores = new Uint16Array(height);
+
+            const luminanceAt = (x, y) => {
+                const idx = (y * width + x) * 4;
+                return (frame[idx] * 77 + frame[idx + 1] * 150 + frame[idx + 2] * 29) >> 8;
+            };
+
+            for (let y = 1; y < height - 1; y += step) {
+                for (let x = 1; x < width - 1; x += step) {
+                    const gx = Math.abs(luminanceAt(x + 1, y) - luminanceAt(x - 1, y));
+                    const gy = Math.abs(luminanceAt(x, y + 1) - luminanceAt(x, y - 1));
+                    const edge = gx + gy;
+                    if (edge > 65) {
+                        colScores[x] += 1;
+                        rowScores[y] += 1;
+                    }
+                }
+            }
+
+            const maxCol = Math.max(...colScores);
+            const maxRow = Math.max(...rowScores);
+            if (maxCol < 6 || maxRow < 6) {
+                return null;
+            }
+
+            const colThreshold = Math.max(4, Math.floor(maxCol * 0.35));
+            const rowThreshold = Math.max(4, Math.floor(maxRow * 0.35));
+
+            let xMin = width;
+            let xMax = -1;
+            let yMin = height;
+            let yMax = -1;
+
+            for (let x = 0; x < width; x++) {
+                if (colScores[x] >= colThreshold) {
+                    xMin = Math.min(xMin, x);
+                    xMax = Math.max(xMax, x);
+                }
+            }
+            for (let y = 0; y < height; y++) {
+                if (rowScores[y] >= rowThreshold) {
+                    yMin = Math.min(yMin, y);
+                    yMax = Math.max(yMax, y);
+                }
+            }
+
+            if (xMax <= xMin || yMax <= yMin) {
+                return null;
+            }
+
+            const w = xMax - xMin;
+            const h = yMax - yMin;
+            const ratio = w / Math.max(h, 1);
+            const area = w * h;
+            const frameArea = width * height;
+
+            if (ratio < 1.8 || ratio > 8.0) {
+                return null;
+            }
+            if (area < frameArea * 0.03 || area > frameArea * 0.75) {
+                return null;
+            }
+
+            return { x: xMin, y: yMin, w, h };
+        }
+
+        function drawOverlay(videoW, videoH, detectedRect = null) {
+            if (!videoW || !videoH) return;
+
+            hardwareOverlay.width = videoW;
+            hardwareOverlay.height = videoH;
+            const ctx = hardwareOverlay.getContext("2d");
+            ctx.clearRect(0, 0, videoW, videoH);
+
+            // Center guide box for user alignment.
+            const guideW = Math.floor(videoW * 0.55);
+            const guideH = Math.floor(videoH * 0.25);
+            const guideX = Math.floor((videoW - guideW) / 2);
+            const guideY = Math.floor((videoH - guideH) / 2);
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "rgba(0, 212, 255, 0.9)";
+            ctx.setLineDash([10, 8]);
+            ctx.strokeRect(guideX, guideY, guideW, guideH);
+            ctx.setLineDash([]);
+
+            if (detectedRect) {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "rgba(0, 255, 136, 0.95)";
+                ctx.strokeRect(detectedRect.x, detectedRect.y, detectedRect.w, detectedRect.h);
+            }
+        }
+
+        async function refreshHardwareResult() {
+            if (!hardwareStream || hardwareCaptureBusy) {
+                return;
+            }
+
+            if (!hardwareVideo.videoWidth || !hardwareVideo.videoHeight) {
+                return;
+            }
+
+            try {
+                hardwareCaptureBusy = true;
+                const fullW = hardwareVideo.videoWidth;
+                const fullH = hardwareVideo.videoHeight;
+                // Crop to center ROI where user will keep the plate.
+                const cropW = Math.floor(fullW * 0.82);
+                const cropH = Math.floor(fullH * 0.48);
+                const sx = Math.floor((fullW - cropW) / 2);
+                const sy = Math.floor((fullH - cropH) / 2);
+
+                hardwareCanvas.width = cropW;
+                hardwareCanvas.height = cropH;
+                const ctx = hardwareCanvas.getContext("2d");
+                ctx.drawImage(
+                    hardwareVideo,
+                    sx,
+                    sy,
+                    cropW,
+                    cropH,
+                    0,
+                    0,
+                    cropW,
+                    cropH
+                );
+
+                const plateRect = findPlateLikeRectangle(ctx, cropW, cropH);
+                drawOverlay(fullW, fullH, null);
+
+                if (!plateRect) {
+                    hardwareStatus.textContent = "Scanning... align plate inside guide box";
+                    hardwareStatus.style.color = "#aaa";
+                    return;
+                }
+
+                // Map detected rect to full video coordinates for visual overlay.
+                drawOverlay(fullW, fullH, {
+                    x: sx + plateRect.x,
+                    y: sy + plateRect.y,
+                    w: plateRect.w,
+                    h: plateRect.h,
+                });
+
+                // Send only detected plate-like region to backend.
+                const plateCanvas = document.createElement("canvas");
+                plateCanvas.width = plateRect.w;
+                plateCanvas.height = plateRect.h;
+                const plateCtx = plateCanvas.getContext("2d");
+                plateCtx.drawImage(
+                    hardwareCanvas,
+                    plateRect.x,
+                    plateRect.y,
+                    plateRect.w,
+                    plateRect.h,
+                    0,
+                    0,
+                    plateRect.w,
+                    plateRect.h
+                );
+
+                const blob = await new Promise((resolve) => {
+                    plateCanvas.toBlob(resolve, "image/jpeg", 0.92);
+                });
+
+                if (!blob) {
+                    throw new Error("Could not capture camera frame");
+                }
+
+                const formData = new FormData();
+                formData.append("image", blob, "camera.jpg");
+                formData.append("mode", "live");
+
+                const response = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                const smooth = smoothDetection(data);
+                if (smooth.ready) {
+                    renderResult(smooth.data);
+                    hardwareStatus.textContent = "Live detection: stable plate confirmed";
+                    hardwareStatus.style.color = "#8dffbf";
+                } else {
+                    hardwareStatus.textContent = smooth.message;
+                    hardwareStatus.style.color = "#aaa";
+                }
+            } catch (err) {
+                hardwareStatus.textContent = "Camera detection failed: " + (err.message || "Unknown error");
+                hardwareStatus.style.color = "#ff9d9d";
+            } finally {
+                hardwareCaptureBusy = false;
+            }
+        }
+
+        async function startHardwareCamera() {
+            if (hardwareStream) return;
+
+            try {
+                hardwareStatus.textContent = "Starting camera...";
+                hardwareStatus.style.color = "#aaa";
+
+                hardwareStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                    },
+                    audio: false
+                });
+
+                hardwareVideo.srcObject = hardwareStream;
+                hardwareVideo.style.display = "block";
+                drawOverlay(1280, 720, null);
+                hardwareStatus.textContent = "Camera started";
+                hardwareStatus.style.color = "#8dffbf";
+            } catch (primaryErr) {
+                try {
+                    hardwareStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                        },
+                        audio: false
+                    });
+                    hardwareVideo.srcObject = hardwareStream;
+                    hardwareVideo.style.display = "block";
+                    drawOverlay(1280, 720, null);
+                    hardwareStatus.textContent = "Camera started";
+                    hardwareStatus.style.color = "#8dffbf";
+                } catch (err) {
+                    hardwareStatus.textContent = "Camera permission denied or no camera available";
+                    hardwareStatus.style.color = "#ff9d9d";
+                    hardwareStream = null;
+                }
+            }
+        }
+
+        function stopHardwareCamera() {
+            if (!hardwareStream) return;
+
+            const tracks = hardwareStream.getTracks();
+            tracks.forEach((track) => track.stop());
+            hardwareVideo.srcObject = null;
+            hardwareVideo.style.display = "none";
+            const overlayCtx = hardwareOverlay.getContext("2d");
+            overlayCtx.clearRect(0, 0, hardwareOverlay.width, hardwareOverlay.height);
+            hardwareStream = null;
+            hardwareCaptureBusy = false;
+            recentPlate = "";
+            recentPlateCount = 0;
+            hardwareStatus.textContent = "Camera is off";
+            hardwareStatus.style.color = "#aaa";
+        }
+
+        function startHardwarePolling() {
+            if (hardwarePollTimer !== null) return;
+
+            startHardwareCamera().then(() => {
+                if (!hardwareStream) return;
+                refreshHardwareResult();
+                hardwarePollTimer = setInterval(refreshHardwareResult, HARDWARE_CAPTURE_INTERVAL_MS);
+            });
+        }
+
+        function stopHardwarePolling() {
+            if (hardwarePollTimer !== null) {
+                clearInterval(hardwarePollTimer);
+                hardwarePollTimer = null;
+            }
+            stopHardwareCamera();
+        }
+
+        function switchMode(mode) {
+            const tabUpload = document.getElementById("tabUpload");
+            const tabHardware = document.getElementById("tabHardware");
+            const panelUpload = document.getElementById("panelUpload");
+            const panelHardware = document.getElementById("panelHardware");
+
+            if (mode === "hardware") {
+                tabHardware.classList.add("active");
+                tabUpload.classList.remove("active");
+                panelHardware.classList.add("active");
+                panelUpload.classList.remove("active");
+                startHardwarePolling();
+            } else {
+                tabUpload.classList.add("active");
+                tabHardware.classList.remove("active");
+                panelUpload.classList.add("active");
+                panelHardware.classList.remove("active");
+                stopHardwarePolling();
+            }
+        }
+
+        // Stop polling if the tab is hidden to avoid duplicate noise in logs.
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                stopHardwarePolling();
+            } else if (document.getElementById("tabHardware").classList.contains("active")) {
+                startHardwarePolling();
+            }
+        });
+    </script>
+</body>
+</html>

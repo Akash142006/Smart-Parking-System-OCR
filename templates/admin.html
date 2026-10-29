@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+        nav {
+            background: #1a1a2e;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #00d4ff;
+        }
+        nav h1 { color: #00d4ff; font-size: 22px; }
+        nav a {
+            color: #aaa;
+            text-decoration: none;
+            margin-left: 25px;
+            font-size: 15px;
+            transition: color 0.3s;
+        }
+        nav a:hover, nav a.active { color: #00d4ff; }
+        .container {
+            max-width: 950px;
+            margin: 50px auto;
+            padding: 0 20px;
+        }
+        h2 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 35px;
+        }
+        .card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+        }
+        input {
+            padding: 12px 14px;
+            background: #0f0f1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        input:focus { border-color: #00d4ff; }
+        button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-main {
+            background: #00d4ff;
+            color: #0f0f1a;
+        }
+        .btn-main:hover { background: #00b8d9; }
+        .message {
+            margin-top: 12px;
+            color: #aaa;
+            min-height: 20px;
+            padding: 8px 10px;
+            border-radius: 8px;
+        }
+        .message.success {
+            color: #8dffbf;
+            background: rgba(0, 255, 136, 0.12);
+        }
+        .message.error {
+            color: #ff9d9d;
+            background: rgba(255, 68, 68, 0.12);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+        th { color: #00d4ff; }
+        .btn-delete {
+            background: #ff4444;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .btn-delete:hover { background: #e03a3a; }
+        @media (max-width: 760px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            nav {
+                padding: 15px 20px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            nav a { margin-left: 0; margin-right: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>Smart Parking</h1>
+        <div>
+            <a href="/">Live Detection</a>
+            <a href="/search">NLP Search</a>
+            <a href="/admin" class="active">Admin Panel</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Admin Panel</h2>
+        <p class="subtitle">Add or remove vehicle number plates from the allowed list</p>
+
+        <div class="card">
+            <div class="form-row">
+                <input id="plateInput" type="text" placeholder="Plate number (e.g. KA01AB1234)">
+                <input id="ownerInput" type="text" placeholder="Owner name">
+                <button class="btn-main" onclick="addPlate()">Add Plate</button>
+            </div>
+            <div class="message" id="message"></div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 12px; color:#00d4ff;">Bulk Upload Plates</h3>
+            <p style="color:#aaa; margin-bottom: 10px; font-size:14px;">Paste one plate per line and upload to remote database.</p>
+            <div style="display:grid; gap:10px;">
+                <textarea id="bulkPlates" rows="6" style="padding:12px; background:#0f0f1a; color:#fff; border:2px solid #333; border-radius:10px; font-size:14px; resize:vertical;" placeholder="KA01AB1234&#10;KA02CD5678&#10;MH12EF9012"></textarea>
+                <input id="bulkOwner" type="text" placeholder="Owner label for all (optional, default: Bulk Upload)">
+                <button class="btn-main" onclick="bulkUpload()" style="width: fit-content;">Upload Plates</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plate</th>
+                        <th>Owner</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function normalizePlate(value) {
+            return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+
+        function showMessage(text, isSuccess) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = isSuccess ? 'message success' : 'message error';
+        }
+
+        async function loadPlates() {
+            try {
+                const response = await fetch('/api/plates');
+                const data = await response.json();
+                const body = document.getElementById('tableBody');
+
+                if (!response.ok) {
+                    body.innerHTML = '<tr><td colspan="3" style="color:#ff9d9d;">Could not load plates from server</td></tr>';
+                    showMessage(data.error || 'Could not load plates.', false);
+                    return;
+                }
+
+                if (!Array.isArray(data)) {
+                    body.innerHTML = '<tr><td colspan="3" style="color:#ff9d9d;">Unexpected response while loading plates</td></tr>';
+                    showMessage('Unexpected server response while loading plates.', false);
+                    return;
+                }
+
+                if (!data.length) {
+                    body.innerHTML = '<tr><td colspan="3" style="color:#aaa;">No plates found</td></tr>';
+                    return;
+                }
+
+                body.innerHTML = data.map(item => `
+                    <tr>
+                        <td>${item.plate}</td>
+                        <td>${item.owner}</td>
+                        <td><button class="btn-delete" onclick="deletePlate('${item.plate}')">Delete</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                showMessage('Could not load plates.', false);
+            }
+        }
+
+        async function addPlate() {
+            const plate = normalizePlate(document.getElementById('plateInput').value.trim());
+            const owner = document.getElementById('ownerInput').value.trim();
+
+            if (!plate || !owner) {
+                showMessage('Plate and owner are required.', false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/plates/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plate, owner })
+                });
+
+                const data = await response.json();
+                const success = Boolean(data.success);
+                showMessage(data.message || (success ? 'Plate added.' : 'Could not add plate.'), success);
+
+                if (success && response.ok) {
+                    document.getElementById('plateInput').value = '';
+                    document.getElementById('ownerInput').value = '';
+                    loadPlates();
+                }
+            } catch (e) {
+                showMessage('Network error while adding plate.', false);
+            }
+        }
+
+        async function deletePlate(plate) {
+            try {
+                const response = await fetch('/api/plates/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plate })
+                });
+
+                const data = await response.json();
+                showMessage(data.message || 'Done', Boolean(data.success));
+                if (response.ok) {
+                    loadPlates();
+                }
+            } catch (e) {
+                showMessage('Network error while deleting plate.', false);
+            }
+        }
+
+        async function bulkUpload() {
+            const plates = document.getElementById('bulkPlates').value;
+            const owner = document.getElementById('bulkOwner').value.trim() || 'Bulk Upload';
+
+            if (!plates.trim()) {
+                showMessage('Please paste at least one plate.', false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/plates/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plates, owner })
+                });
+
+                const data = await response.json();
+                showMessage(data.message || 'Bulk upload done', Boolean(data.success));
+
+                if (data.success) {
+                    document.getElementById('bulkPlates').value = '';
+                    loadPlates();
+                }
+            } catch (e) {
+                showMessage('Network error during bulk upload.', false);
+            }
+        }
+
+        loadPlates();
+    </script>
+</body>
+</html>

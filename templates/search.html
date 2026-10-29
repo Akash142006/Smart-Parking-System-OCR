@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking - NLP Search</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+        nav {
+            background: #1a1a2e;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #00d4ff;
+        }
+        nav h1 { color: #00d4ff; font-size: 22px; }
+        nav a {
+            color: #aaa;
+            text-decoration: none;
+            margin-left: 25px;
+            font-size: 15px;
+            transition: color 0.3s;
+        }
+        nav a:hover, nav a.active { color: #00d4ff; }
+        .container {
+            max-width: 700px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+        h2 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 50px;
+            line-height: 1.6;
+        }
+        .search-box {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+        .search-box label {
+            display: block;
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+        .search-box input[type="text"] {
+            flex: 1;
+            padding: 14px 18px;
+            background: #0f0f1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 15px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        .search-box input[type="text"]:focus { border-color: #00d4ff; }
+        .btn-search {
+            padding: 14px 25px;
+            background: #00d4ff;
+            color: #0f0f1a;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+        .btn-search:hover { background: #00b8d9; }
+        .examples {
+            margin-top: 20px;
+        }
+        .examples p {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .example-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .chip {
+            background: #0f0f1a;
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .chip:hover {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+        .result-box {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 35px;
+            text-align: center;
+            display: none;
+        }
+        .plate-number {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #ffffff;
+            background: #0f0f1a;
+            padding: 15px 30px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 20px;
+            border: 2px solid #333;
+        }
+        .status-allowed {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff88;
+            padding: 15px 40px;
+            border-radius: 10px;
+            background: rgba(0,255,136,0.1);
+            border: 2px solid #00ff88;
+            display: inline-block;
+        }
+        .status-denied {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff4444;
+            padding: 15px 40px;
+            border-radius: 10px;
+            background: rgba(255,68,68,0.1);
+            border: 2px solid #ff4444;
+            display: inline-block;
+        }
+        .status-unknown {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffaa00;
+            padding: 15px 40px;
+            border-radius: 10px;
+            background: rgba(255,170,0,0.1);
+            border: 2px solid #ffaa00;
+            display: inline-block;
+        }
+        .owner-name {
+            margin-top: 15px;
+            color: #aaa;
+            font-size: 15px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            color: #00d4ff;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 0.8s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🚗 Smart Parking</h1>
+        <div>
+            <a href="/">Live Detection</a>
+            <a href="/search" class="active">NLP Search</a>
+            <a href="/admin">Admin Panel</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Natural Language Search</h2>
+        <p class="subtitle">
+            Type a question in plain English to check if a vehicle has parking access.<br>
+            Just include the plate number anywhere in your sentence.
+        </p>
+
+        <div class="search-box">
+            <label>Ask anything about a number plate:</label>
+            <div class="input-row">
+                <input
+                    type="text"
+                    id="queryInput"
+                    placeholder="e.g. Is KA01AB1234 allowed to park?"
+                    onkeydown="if(event.key==='Enter') searchPlate()"
+                >
+                <button class="btn-search" onclick="searchPlate()">Search</button>
+            </div>
+
+            <div class="examples">
+                <p>Try these examples:</p>
+                <div class="example-chips">
+                    <span class="chip" onclick="fillQuery('Is KA01AB1234 allowed to park?')">Is KA01AB1234 allowed?</span>
+                    <span class="chip" onclick="fillQuery('Check access for MH12EF9012')">Check MH12EF9012</span>
+                    <span class="chip" onclick="fillQuery('Does KA02CD5678 have parking access?')">Does KA02CD5678 have access?</span>
+                    <span class="chip" onclick="fillQuery('Can TN09GH3456 enter the parking?')">Can TN09GH3456 enter?</span>
+                    <span class="chip" onclick="fillQuery('Verify plate DL05XY9999')">Verify DL05XY9999</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            Searching database...
+        </div>
+
+        <div class="result-box" id="resultBox">
+            <p style="color:#aaa; margin-bottom:15px;">Result for plate</p>
+            <div class="plate-number" id="plateNumber">—</div>
+            <br>
+            <div id="statusBadge"></div>
+            <div class="owner-name" id="ownerName"></div>
+        </div>
+    </div>
+
+    <script>
+        function fillQuery(text) {
+            document.getElementById("queryInput").value = text;
+            searchPlate();
+        }
+
+        async function searchPlate() {
+            const query = document.getElementById("queryInput").value.trim();
+            if (!query) return;
+
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("resultBox").style.display = "none";
+
+            try {
+                const response = await fetch("/api/search", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await response.json();
+
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("resultBox").style.display = "block";
+
+                if (data.error && !data.plate) {
+                    document.getElementById("plateNumber").textContent = "NOT FOUND";
+                    document.getElementById("statusBadge").innerHTML =
+                        '<div class="status-unknown">⚠️ NO PLATE DETECTED IN QUERY</div>';
+                    document.getElementById("ownerName").textContent = data.tip || "";
+                    return;
+                }
+
+                document.getElementById("plateNumber").textContent = data.plate;
+
+                const statusBadge = document.getElementById("statusBadge");
+                const ownerName = document.getElementById("ownerName");
+
+                if (data.status === "ALLOWED") {
+                    statusBadge.innerHTML = '<div class="status-allowed">✅ ACCESS ALLOWED</div>';
+                    ownerName.textContent = "Owner: " + (data.owner || "Unknown");
+                } else if (data.status === "PENDING_DB") {
+                    statusBadge.innerHTML = '<div class="status-unknown">⏳ DB CHECK PENDING</div>';
+                    ownerName.textContent = data.note || data.error || "Database is temporarily unavailable";
+                } else if (!response.ok && data.error) {
+                    statusBadge.innerHTML = '<div class="status-unknown">⚠️ REQUEST FAILED</div>';
+                    ownerName.textContent = data.error;
+                } else {
+                    statusBadge.innerHTML = '<div class="status-denied">❌ ACCESS DENIED</div>';
+                    ownerName.textContent = "This plate is not registered in the system";
+                }
+
+            } catch (err) {
+                document.getElementById("loading").style.display = "none";
+                alert("Server error. Make sure Flask is running.");
+            }
+        }
+    </script>
+</body>
+</html>
